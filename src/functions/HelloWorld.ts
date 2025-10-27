@@ -5,7 +5,7 @@ export async function HelloWorld(request: HttpRequest, context: InvocationContex
 
     const name = request.query.get('name') || await request.text() || 'world';
 
-    return { body: `Hello F, ${name}!` };
+    return { body: `Hello G, ${name}!` };
 };
 
 app.http('HelloWorld', {
