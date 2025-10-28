@@ -1,6 +1,7 @@
-# Docs: https://github.com/Azure/functions-action
+# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
+# More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js project to Azure Function App
+name: Build and deploy Node.js project to Azure Function App - GitHubDeploy
 
 on:
   push:
@@ -9,51 +10,33 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Pfad zum Function App-Projekt
-  NODE_VERSION: '22'
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: '22' # set this to the node version to use (supports 8.x, 10.x, 12.x)
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # notwendig, um Commits/Tags pushen zu dürfen
+      contents: read #This is required for actions/checkout
 
     steps:
-      - name: Checkout Repository
+      - name: 'Checkout GitHub Action'
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Tags pushen ermöglichen
 
-      - name: Setup Node.js
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install Dependencies and Build
+      - name: 'Resolve Project Dependencies Using Npm'
+        shell: bash
         run: |
-          npm ci
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm install
           npm run build --if-present
           npm run test --if-present
+          popd
 
-      # 🧩 Git-Identität setzen
-      - name: Configure Git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      # 🧩 Änderungen committen, falls durch Build/Install entstanden
-      - name: Commit build changes (if any)
-        run: |
-          git add -A
-          git diff --cached --quiet || git commit -m "chore: auto-commit build artifacts"
-
-      # 🧩 Version erhöhen, committen & taggen
-      - name: Bump version (patch) and push tag
-        run: |
-          npm version patch -m "chore(release): %s"
-          git push --follow-tags origin main
-
-      # 🧩 Paket für Deployment vorbereiten
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
 
@@ -67,8 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write   # notwendig für Azure Login via OIDC
-      contents: read    # notwendig für checkout
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
 
     steps:
       - name: Download artifact from build job
@@ -76,22 +59,23 @@ jobs:
         with:
           name: node-app
 
-      - name: Unzip artifact
+      - name: Unzip artifact for deployment
         run: |
           unzip release.zip
           rm release.zip
-
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_35574E1EDF944277B166373AE5A106EB }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1CC6B171B7924C8FB5CAA886A5B7CF38 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_73B998E336274129B88E4E9C90E51B5E }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_31E84B2DE789448487FADAB141784CFA }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_09A803952B454999B816C6E7761EB283 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1D68D68748CD401E8798D940C330811B }}
 
-      - name: Deploy to Azure Function App
+      - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
         with:
           app-name: 'GitHubDeploy'
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          
