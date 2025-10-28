@@ -1,7 +1,6 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
-# More GitHub Actions for Azure: https://github.com/Azure/actions
+# Docs: https://github.com/Azure/functions-action
 
-name: Build and deploy Node.js project to Azure Function App - GitHubDeploy
+name: Build and deploy Node.js project to Azure Function App
 
 on:
   push:
@@ -10,20 +9,20 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: "22" # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # Pfad zum Function App-Projekt
+  NODE_VERSION: '22'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # notwendig, um Commits und Tags pushen zu dürfen
+      contents: write  # notwendig, um Commits/Tags pushen zu dürfen
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # notwendig, damit Tags gepusht werden können
+          fetch-depth: 0  # Tags pushen ermöglichen
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -64,14 +63,12 @@ jobs:
           name: node-app
           path: release.zip
 
-
-
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write   # notwendig für Azure Login via OIDC
+      contents: read    # notwendig für checkout
 
     steps:
       - name: Download artifact from build job
@@ -79,7 +76,7 @@ jobs:
         with:
           name: node-app
 
-      - name: Unzip artifact for deployment
+      - name: Unzip artifact
         run: |
           unzip release.zip
           rm release.zip
@@ -91,10 +88,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1CC6B171B7924C8FB5CAA886A5B7CF38 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_73B998E336274129B88E4E9C90E51B5E }}
 
-      - name: "Run Azure Functions Action"
+      - name: Deploy to Azure Function App
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: "GitHubDeploy"
-          slot-name: "Production"
+          app-name: 'GitHubDeploy'
+          slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
