@@ -39,6 +39,11 @@ jobs:
           npm run test --if-present
           popd
 
+      - name: Commit build changes (if any)
+        run: |
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: auto-commit build artifacts"
+
           # 🟢 Versionierung hinzufügen
       - name: "Bump version (patch) and tag"
         run: |
