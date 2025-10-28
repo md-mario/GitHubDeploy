@@ -17,46 +17,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # <-- ändern von read auf write, da wir commit/tag pushen
+      contents: write  # notwendig, um Commits und Tags pushen zu dürfen
 
     steps:
-      - name: "Checkout GitHub Action"
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # <-- wichtig, damit Tags gepusht werden können
+          fetch-depth: 0  # notwendig, damit Tags gepusht werden können
 
-      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: "Resolve Project Dependencies Using Npm"
-        shell: bash
+      - name: Install Dependencies and Build
         run: |
-          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          npm install
+          npm ci
           npm run build --if-present
           npm run test --if-present
-          popd
 
+      # 🧩 Git-Identität setzen
       - name: Configure Git identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      # 🧩 Änderungen committen, falls durch Build/Install entstanden
       - name: Commit build changes (if any)
         run: |
           git add -A
           git diff --cached --quiet || git commit -m "chore: auto-commit build artifacts"
 
-          # 🟢 Versionierung hinzufügen
-      - name: "Bump version (patch) and tag"
+      # 🧩 Version erhöhen, committen & taggen
+      - name: Bump version (patch) and push tag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           npm version patch -m "chore(release): %s"
           git push --follow-tags origin main
 
+      # 🧩 Paket für Deployment vorbereiten
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
 
@@ -65,6 +63,8 @@ jobs:
         with:
           name: node-app
           path: release.zip
+
+
 
   deploy:
     runs-on: ubuntu-latest
