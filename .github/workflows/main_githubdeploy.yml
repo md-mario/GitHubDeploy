@@ -10,25 +10,27 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '22' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: "22" # set this to the node version to use (supports 8.x, 10.x, 12.x)
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: write # <-- ändern von read auf write, da wir commit/tag pushen
 
     steps:
-      - name: 'Checkout GitHub Action'
+      - name: "Checkout GitHub Action"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # <-- wichtig, damit Tags gepusht werden können
 
       - name: Setup Node ${{ env.NODE_VERSION }} Environment
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: 'Resolve Project Dependencies Using Npm'
+      - name: "Resolve Project Dependencies Using Npm"
         shell: bash
         run: |
           pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
@@ -36,6 +38,14 @@ jobs:
           npm run build --if-present
           npm run test --if-present
           popd
+
+          # 🟢 Versionierung hinzufügen
+      - name: "Bump version (patch) and tag"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          npm version patch -m "chore(release): %s"
+          git push --follow-tags origin main
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
@@ -63,7 +73,7 @@ jobs:
         run: |
           unzip release.zip
           rm release.zip
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -71,11 +81,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1CC6B171B7924C8FB5CAA886A5B7CF38 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_73B998E336274129B88E4E9C90E51B5E }}
 
-      - name: 'Run Azure Functions Action'
+      - name: "Run Azure Functions Action"
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'GitHubDeploy'
-          slot-name: 'Production'
+          app-name: "GitHubDeploy"
+          slot-name: "Production"
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          
